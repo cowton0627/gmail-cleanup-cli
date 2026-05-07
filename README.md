@@ -1,133 +1,152 @@
 # gmail-cleanup-cli
 
-AI 輔助的 Gmail 收件匣整理工具。掃描你的 INBOX，把每封信丟給 Claude 分類成 `keep` / `review_needed` / `likely_archive` / `likely_trash`，輸出 CSV 報表，讓你決定要怎麼處置。
+用 **gws + Claude Code** 整理 Gmail 收件匣的 runbook。
 
-**目前版本只讀取信件，不會修改、封存或刪除任何郵件。**
+這不是傳統 CLI 工具，而是一份「環境需求 + 一次性設定 + 可貼上的 prompt 範本」。打開 Claude Code，把 `prompts/01-scan.md` 整段貼進去，它會用 gws 抓信、分類、產出 CSV；審閱後再貼 `prompts/02-apply.md`，就會把該丟的丟到垃圾桶。
 
-## 功能
+## 為什麼是這個架構
 
-- 直接呼叫 Gmail API（不依賴 `gws`）抓取 INBOX 信件 metadata
-- 用 Claude API 分類，套用「收據／發票／登入／銀行 → review_needed」等保守規則
-- 內建 prompt caching 與批次處理，降低 API 成本
-- 輸出可在 Excel／Google Sheets 直接打開的 CSV
+```
+你 ──prompt──▶ Claude Code ──呼叫──▶ gws ──呼叫──▶ Gmail API
+                  │
+                  └─── 直接用自己的能力分類（不需要另外的 LLM API key）
+```
+
+- **gws** 負責跟 Gmail API 講話（OAuth、分頁、metadata 抓取）
+- **Claude Code**（你訂閱的這個 CLI）負責決策（分類、判斷風險）
+- **你** 負責看 CSV、最終決定
+
+不需要 Anthropic API key — 你已經為 Claude Code 付費了，分類就是請它做事而已。
 
 ## 需求
 
-- Node.js 18 以上
-- Google 帳號（要整理的 Gmail）
-- GCP 專案 + Gmail API OAuth credentials
-- Anthropic API key
+| 工具 | 用途 |
+|---|---|
+| Node.js >= 18 | 跑 gws |
+| python3 | CSV 輸出（內建在大部分系統） |
+| jq | 處理 JSON |
+| gcloud SDK | gws 的依賴 |
+| gws (Google Workspace CLI) | 跟 Gmail API 講話 |
+| Claude Code | 你已經有 |
 
-## 安裝
+## 一次性設定
 
-```bash
-npm install
-```
-
-## 設定
-
-### 1. Anthropic API key
-
-複製 `.env.example` 為 `.env`，填入你的 API key：
+### 1. 安裝依賴（WSL2 / Ubuntu）
 
 ```bash
-cp .env.example .env
-# 編輯 .env，把 ANTHROPIC_API_KEY=sk-ant-... 換成你自己的 key
+# jq
+sudo apt-get install -y jq
+
+# gcloud SDK
+curl https://sdk.cloud.google.com | bash
+exec -l $SHELL
+
+# gws
+npm install -g @googleworkspace/cli
 ```
 
-> 如果還沒有 key，到 https://console.anthropic.com/ 申請。
+驗證：`gcloud --version`、`gws --version`、`jq --version` 都應印出版本號。
 
 ### 2. GCP 專案 + Gmail OAuth
 
-下面這些步驟跟著文章作者做過的設定一致，但 OAuth client 類型要選「**桌面應用程式 (Desktop app)**」：
+到 https://console.cloud.google.com/ 用要整理的 Gmail 帳號登入：
 
-1. 開啟 https://console.cloud.google.com/ 並登入要整理的 Gmail 帳號
-2. **建立專案**（或選用既有專案），名稱隨意
-3. 進入「**APIs & Services → Library**」，搜尋 **Gmail API**，點 **Enable**
-4. 進入「**APIs & Services → OAuth consent screen**」：
-   - User type 選 **External**
-   - 填 App name（例如 `gmail-cleanup`）、support email、developer email
-   - **Scopes** 這頁可以先跳過（直接 Save and Continue）
-   - **Test users** 加入你自己的 Gmail 帳號（重要！否則會被擋下）
-5. 進入「**APIs & Services → Credentials**」：
-   - 點 **Create Credentials → OAuth client ID**
-   - Application type 選 **Desktop app**
-   - 名稱隨意，建立後點下載按鈕拿到 JSON
-6. 把下載的 JSON **重新命名為 `credentials.json`**，放在這個專案的根目錄
+1. **新增專案**（名稱隨意）
+2. **APIs & Services → Library**：搜尋 Gmail API → Enable
+3. **OAuth consent screen**：
+   - User Type 選 External
+   - 填 App name / support email
+   - **Test users 加入你自己的 Gmail**（必要！）
+4. **Credentials → Create Credentials → OAuth client ID**：
+   - Type 選 **Desktop app**
+   - 建立後下載 JSON
 
-### 3. 執行 OAuth 授權
+下載的 JSON 不一定要放專案根目錄 — `gws auth setup` 會自己處理。
+
+### 3. gws 認證
 
 ```bash
-node src/index.js auth
+# 登入 gcloud（遠端 SSH 用 --no-launch-browser）
+gcloud auth login --no-launch-browser
+gcloud config set project <你的-project-id>
+
+# 設定 gws：選 Gmail API，scopes 至少勾 gmail.readonly + gmail.labels（apply 階段加 gmail.modify）
+gws auth setup
+
+# 使用者授權
+gws auth login -s gmail
 ```
 
-這個指令會：
-1. 啟動本機 server 在 `http://127.0.0.1:<隨機 port>/oauth2callback`
-2. 在 terminal 印出一個 Google 授權網址
-3. 你打開網址、用要整理的 Gmail 帳號授權
-4. 瀏覽器自動跳回 localhost，把授權碼交給本機 server
-5. Token 存到 `~/.config/gmail-cleanup/token.json`，下次不用再授權
+驗證：
+```bash
+gws gmail users messages list --params '{"userId":"me","labelIds":["INBOX"],"maxResults":3}'
+```
+看到 JSON 裡有 messages 陣列就 OK。
 
-> **WSL 使用者**：把 terminal 印出的網址複製到 Windows 瀏覽器即可。WSL2 的 localhost 跟 Windows 是相通的，授權後可以正常 callback。
+> **遠端 SSH 注意**：`gws auth login` 會啟動 localhost server 等 callback。你的瀏覽器在本機開不到遠端 localhost，解法是把瀏覽器跳轉的網址（含 `?code=...`）整段貼回 terminal，用 `curl '貼上的 URL'` 從遠端送進 listen 中的 server。
 
 ## 使用方式
 
-```bash
-# 預設掃描 500 封 INBOX 信件
-node src/index.js scan
+### 掃描階段（read-only，安全）
 
-# 掃描更多 + 自訂輸出位置
-node src/index.js scan --max 2000 --output ~/Desktop/inbox_review.csv
+打開 Claude Code，把 `prompts/01-scan.md` 整段貼上，最後加一句你的需求，例如：
 
-# 加入 Gmail 搜尋條件（只看 90 天前的）
-node src/index.js scan --query "older_than:90d" --max 1000
+```
+（貼 01-scan.md 內容）
+
+請處理我的 INBOX 最多 500 封，輸出到 ~/Desktop/inbox_review.csv。
 ```
 
-如果有執行 `npm link`，可直接 `gmail-cleanup scan ...`。
+Claude Code 會：
+1. 用 gws 抓 ID 清單（分頁）
+2. 對每個 ID 抓 metadata
+3. 自己分類（keep / review_needed / likely_archive / likely_trash）
+4. 寫成 CSV
 
-## 輸出格式
+打開 CSV，照 `classification` 欄排序，看分類是否合理。覺得有誤，可以手動把 `classification` 欄改成 `keep` 或 `review_needed`，就不會在 apply 階段被處理。
 
-CSV 欄位：
+### Apply 階段（會修改 Gmail，謹慎）
 
-| 欄位 | 說明 |
-| --- | --- |
-| `date` | 信件 Date header |
-| `from` | 寄件者 |
-| `subject` | 主旨 |
-| `original_labels` | Gmail 原本的 label（用 `\|` 分隔） |
-| `classification` | `keep` / `review_needed` / `likely_archive` / `likely_trash` |
-| `reason` | Claude 給的中文理由 |
-| `suggested_action` | 對應的建議動作 |
-| `message_id` | Gmail 內部 message id（之後做 modify/trash 時會用到） |
+確認 CSV 沒問題後，貼 `prompts/02-apply.md`：
 
-## 分類規則（系統 prompt）
+```
+（貼 02-apply.md 內容）
 
-- **keep** — 明顯重要的個人或工作信件
-- **review_needed** — 收據／發票／訂單／付款／登入／2FA／銀行／政府／學校／醫療／保險，**或不確定的一律放這裡**
-- **likely_archive** — 不急但值得保留（電子報、舊出貨通知等）
+CSV 在 ~/Desktop/inbox_review.csv。
+```
+
+Claude Code 會：
+1. 對每封 `likely_trash` 的信加上 `cleanup-trash-candidate` label
+2. 用 `gws gmail users messages trash` 移到垃圾桶（**不是永久刪除**）
+3. Gmail 預設 30 天後自動清空垃圾桶 — 給你後悔的機會
+
+## 分類規則
+
+- **keep** — 明顯重要的個人或工作信
+- **review_needed** — 收據／發票／訂單／付款／登入／2FA／銀行／政府／學校／醫療／保險／法律／合約，**或不確定的一律放這**
+- **likely_archive** — 不急但值得保留（電子報、舊出貨通知）
 - **likely_trash** — 純廣告、促銷、過期優惠、大量發送無關信
 
 設計原則：寧可保留也不要誤刪。
 
-## 成本
+## 安全
 
-預設使用 `claude-haiku-4-5-20251001`（最便宜的選擇）。可在 `.env` 設定 `CLAUDE_MODEL` 換成 Sonnet/Opus。
+- `gws` 預設用加密憑證（keyring backend），存在 `~/.config/gws/credentials.enc`
+- 本專案不存任何 secret；`.gitignore` 排除 `credentials.json`、`token.json`、`*.csv`
+- Apply 階段只 trash 不 delete，留 30 天後悔期
 
-每批 25 封信一次 API 呼叫，加上 prompt caching，1000 封信大致 < $0.05 USD（Haiku 4.5）。
+## 專案結構
 
-## 未來規劃
+```
+.
+├── README.md
+├── prompts/
+│   ├── 01-scan.md      # 貼給 Claude Code 跑掃描
+│   └── 02-apply.md     # 確認 CSV 後貼這個
+├── credentials.json    # 不 commit（gitignored）
+└── .gitignore
+```
 
-- [ ] `apply` 子指令：根據 CSV 自動加標籤、封存、移到垃圾桶
-- [ ] dry-run 模式
-- [ ] 限制只處理 N 天前的信
-- [ ] 支援多個 Gmail 帳號
-
-## 安全性
-
-- `credentials.json` 與 `~/.config/gmail-cleanup/token.json` 已加入 `.gitignore`，**請勿 commit**
-- Token 檔權限設為 0600
-- 目前只請求 `gmail.readonly` scope，無法修改任何信件
-
-## 授權
+## License
 
 ISC
