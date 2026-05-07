@@ -4,6 +4,8 @@
 
 這不是傳統 CLI 工具，而是一份「環境需求 + 一次性設定 + 可貼上的 prompt 範本」。打開 Claude Code，把 `prompts/01-scan.md` 整段貼進去，它會用 gws 抓信、分類、產出 CSV；審閱後再貼 `prompts/02-apply.md`，就會把該丟的丟到垃圾桶。
 
+> 想直接看日常操作步驟，請看 [`USAGE.md`](./USAGE.md)。
+
 ## 為什麼是這個架構
 
 ```
