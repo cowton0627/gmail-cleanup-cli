@@ -55,6 +55,8 @@ date, from, subject, original_labels, classification, reason, suggested_action, 
 - `reason`：你分類的中文簡短理由（例如「促銷信」、「銀行扣款通知」、「個人來信」）
 - `suggested_action`：對應該分類的中文建議動作
 
+**寫 CSV 一律用 Python `csv.writer(..., quoting=csv.QUOTE_ALL)` 或等價方式**，所有欄位加雙引號、內部雙引號 escape 成 `""`。subject 內常有逗號／引號／換行，禁止用 `echo` 或字串拼接湊 CSV。
+
 最後印一個簡短摘要：總共 N 封、各分類各幾封。
 
 ## 限制（嚴守）

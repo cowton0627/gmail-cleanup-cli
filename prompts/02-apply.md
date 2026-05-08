@@ -4,23 +4,7 @@
 
 ## 操作
 
-對 CSV 中**每筆 `likely_trash`** 的列：
-
-### 1. 加標籤 `cleanup-trash-candidate`
-
-如果這個 label 還不存在，先建立：
-
-```bash
-gws gmail users labels create --params '{"userId":"me","requestBody":{"name":"cleanup-trash-candidate","labelListVisibility":"labelShow","messageListVisibility":"show"}}'
-```
-
-對每封信加 label：
-
-```bash
-gws gmail users messages modify --params '{"userId":"me","id":"<message_id>","requestBody":{"addLabelIds":["<labelId>"]}}'
-```
-
-### 2. 移到垃圾桶
+對 CSV 中**每筆 `likely_trash`** 的列，呼叫 `messages.trash` 移到垃圾桶：
 
 ```bash
 gws gmail users messages trash --params '{"userId":"me","id":"<message_id>"}'

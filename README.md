@@ -72,7 +72,7 @@ npm install -g @googleworkspace/cli
 gcloud auth login --no-launch-browser
 gcloud config set project <你的-project-id>
 
-# 設定 gws：選 Gmail API，scopes 至少勾 gmail.readonly + gmail.labels（apply 階段加 gmail.modify）
+# 設定 gws：選 Gmail API；scan 階段需要 gmail.readonly，apply 階段需要 gmail.modify（可一次都勾起來）
 gws auth setup
 
 # 使用者授權
@@ -118,16 +118,12 @@ CSV 在 ~/Desktop/inbox_review.csv。
 ```
 
 Claude Code 會：
-1. 對每封 `likely_trash` 的信加上 `cleanup-trash-candidate` label
-2. 用 `gws gmail users messages trash` 移到垃圾桶（**不是永久刪除**）
-3. Gmail 預設 30 天後自動清空垃圾桶 — 給你後悔的機會
+1. 對每封 `likely_trash` 的信呼叫 `gws gmail users messages trash` 移到垃圾桶（**不是永久刪除**）
+2. Gmail 預設 30 天後自動清空垃圾桶 — 給你後悔的機會
 
 ## 分類規則
 
-- **keep** — 明顯重要的個人或工作信
-- **review_needed** — 收據／發票／訂單／付款／登入／2FA／銀行／政府／學校／醫療／保險／法律／合約，**或不確定的一律放這**
-- **likely_archive** — 不急但值得保留（電子報、舊出貨通知）
-- **likely_trash** — 純廣告、促銷、過期優惠、大量發送無關信
+四個類別：`keep` / `review_needed` / `likely_archive` / `likely_trash`，定義跟詳細判斷規則只在 [`prompts/01-scan.md`](./prompts/01-scan.md) 維護一份。
 
 設計原則：寧可保留也不要誤刪。
 

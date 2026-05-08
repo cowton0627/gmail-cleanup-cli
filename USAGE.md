@@ -23,13 +23,7 @@
 1. 安裝 `node>=18`、`jq`、`gcloud SDK`、`gws`（`npm i -g @googleworkspace/cli`）
 2. GCP Console 新增專案 → 啟用 Gmail API → OAuth consent screen 把自己加進 Test users → Credentials 建 Desktop OAuth client → 下載 JSON
 3. `gcloud auth login --no-launch-browser` → `gcloud config set project ...` → `gws auth setup` → `gws auth login -s gmail`
-4. 驗證：
-
-```bash
-gws gmail users messages list --params '{"userId":"me","labelIds":["INBOX"],"maxResults":3}'
-```
-
-看到 `messages` 陣列就 OK。看不到 → 99% 是 token 過期，重跑 `gws auth login -s gmail`。
+4. 驗證指令見 [`README.md`](./README.md) 的「gws 認證」段。看不到 `messages` 陣列 → 99% 是 token 過期，重跑 `gws auth login -s gmail`。
 
 > SSH 遠端用的話，OAuth callback 那關有眉角：README 第 86 行那段「把跳轉網址 curl 進 listen 中的 server」要照做。
 
@@ -71,8 +65,7 @@ CSV 確定 OK 之後：
 2. 在最下面填 CSV 路徑 + 那句「我已審閱 CSV，請執行」。
 3. Claude Code 會：
    - 先 `head -5 <CSV>` 給你看，確認解析對
-   - 建立 `cleanup-trash-candidate` label（如果還沒有）
-   - 對每封 `likely_trash` 加 label → `messages.trash`（**不是 delete**，是丟到垃圾桶）
+   - 對每封 `likely_trash` 呼叫 `messages.trash`（**不是 delete**，是丟到垃圾桶）
    - 每 50 封回報進度
    - 失敗率 > 1% 或連 3 次 API fail → 自動停下
 

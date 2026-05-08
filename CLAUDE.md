@@ -46,12 +46,9 @@ git show 9d61603:src/classify.js
 
 Scan 階段（`prompts/01-scan.md`）是 read-only：不可呼叫 `trash` / `delete` / `modify` 或任何會修改 Gmail 狀態的 API。
 
-## 分類四類（寧可保留也不要誤刪）
+## 分類四類
 
-- `keep` — 真人寫的個人／工作信
-- `review_needed` — 收據／發票／訂單／付款／登入／2FA／銀行／政府／學校／醫療／保險／法律／合約，**或不確定的一律放這**
-- `likely_archive` — 電子報、舊出貨通知等不急但值得保留
-- `likely_trash` — 純廣告、促銷、過期優惠、大量發送無關信
+`keep` / `review_needed` / `likely_archive` / `likely_trash`。權威定義與判斷規則在 `prompts/01-scan.md`，不要在這裡複製一份（避免漂移）。設計原則：**寧可保留也不要誤刪**。
 
 ## 不要碰的東西
 
@@ -60,23 +57,6 @@ Scan 階段（`prompts/01-scan.md`）是 read-only：不可呼叫 `trash` / `del
 - `~/.config/gws/credentials.enc` — gws 的加密憑證 store
 - `.env*` — gitignored
 
-## 驗證 gws 還活著
+## 驗證 gws / 專案結構
 
-```bash
-gws gmail users messages list --params '{"userId":"me","labelIds":["INBOX"],"maxResults":3}'
-```
-
-看到 JSON 裡有 `messages` 陣列就 OK。沒有的話通常是 token 過期，使用者要重跑 `gws auth login -s gmail`。
-
-## 專案結構
-
-```
-.
-├── CLAUDE.md           # 這份
-├── README.md           # 給人類看的安裝與使用說明
-├── prompts/
-│   ├── 01-scan.md      # 貼給 Claude Code 跑掃描（read-only）
-│   └── 02-apply.md     # 確認 CSV 後貼這個（會改 Gmail）
-├── credentials.json    # gitignored
-└── .gitignore
-```
+兩者都在 `README.md` 維護，這裡不複製。驗證指令見 README「gws 認證」段；專案結構見 README 末尾。
