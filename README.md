@@ -4,7 +4,7 @@
 
 這不是傳統 CLI 工具，而是一份「環境需求 + 一次性設定 + 可貼上的 prompt 範本」。打開 Claude Code，把 `prompts/01-scan.md` 整段貼進去，它會用 gws 抓信、分類、產出 CSV；審閱後再貼 `prompts/02-apply.md`，就會把該丟的丟到垃圾桶。
 
-> 想直接看日常操作步驟，請看 [`USAGE.md`](./USAGE.md)。
+> **TL;DR**：第一次設定完後，日常就是「貼 `01-scan.md` → 改 CSV → 貼 `02-apply.md`」三步。
 
 ## 為什麼是這個架構
 
@@ -121,6 +121,15 @@ Claude Code 會：
 1. 對每封 `likely_trash` 的信呼叫 `gws gmail users messages trash` 移到垃圾桶（**不是永久刪除**）
 2. Gmail 預設 30 天後自動清空垃圾桶 — 給你後悔的機會
 
+## 出狀況的快速排查
+
+| 症狀 | 多半是 | 處理 |
+|---|---|---|
+| `gws ... messages list` 沒回 `messages` 陣列 | token 過期 | `gws auth login -s gmail` |
+| Apply 階段失敗率高 | scope 不夠（只給了 readonly） | `gws auth setup` 重跑、勾 `gmail.modify` |
+| CSV 開出來亂碼 | Excel 認不得 UTF-8 | 用 LibreOffice 開、或匯入時手動選 UTF-8 |
+| 想復原誤丟的信 | 還沒過 30 天 | Gmail 網頁版 → 垃圾桶 → 還原 |
+
 ## 分類規則
 
 四個類別：`keep` / `review_needed` / `likely_archive` / `likely_trash`，定義跟詳細判斷規則只在 [`prompts/01-scan.md`](./prompts/01-scan.md) 維護一份。
@@ -133,17 +142,16 @@ Claude Code 會：
 - 本專案不存任何 secret；`.gitignore` 排除 `credentials.json`、`token.json`、`*.csv`
 - Apply 階段只 trash 不 delete，留 30 天後悔期
 
-## 專案結構
+## 各檔案的角色
 
-```
-.
-├── README.md
-├── prompts/
-│   ├── 01-scan.md      # 貼給 Claude Code 跑掃描
-│   └── 02-apply.md     # 確認 CSV 後貼這個
-├── credentials.json    # 不 commit（gitignored）
-└── .gitignore
-```
+| 檔案 | 角色 | 你要不要編輯 |
+|---|---|---|
+| `README.md` | 給人看的安裝 + 使用說明（這份） | 一般不用 |
+| `CLAUDE.md` | 給未來進來這個 repo 的 Claude Code 看的 onboarding + 硬規則 | 一般不用 |
+| `prompts/01-scan.md` | 貼給 Claude Code 跑掃描（read-only） | **每次貼之前**在最下面填具體需求 |
+| `prompts/02-apply.md` | 貼給 Claude Code 執行 trash（會改 Gmail） | **每次貼之前**在最下面填 CSV 路徑 + 授權句 |
+| `credentials.json` | GCP OAuth client 憑證 | 不 commit、不外流（已 gitignored） |
+| `.gitignore` | 擋掉 secret 跟 CSV | 不用動 |
 
 ## License
 
