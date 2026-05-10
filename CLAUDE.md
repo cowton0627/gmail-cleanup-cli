@@ -53,7 +53,7 @@ Scan 階段（`prompts/01-scan.md`）是 read-only：不可呼叫 `trash` / `del
 ## 不要碰的東西
 
 - `credentials.json` — GCP OAuth client credentials，已 gitignored
-- `token.json`、`*.csv`（除 `example.csv`）— 同上
+- `token.json`、`*.csv` — 同上
 - `~/.config/gws/credentials.enc` — gws 的加密憑證 store
 - `.env*` — gitignored
 

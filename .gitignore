@@ -6,7 +6,6 @@ credentials.json
 token.json
 
 *.csv
-!example.csv
 
 .DS_Store
 *.log
