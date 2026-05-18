@@ -33,7 +33,9 @@
 
 ## 一次性設定
 
-### 1. 安裝依賴（WSL2 / Ubuntu）
+### 1. 安裝依賴
+
+**WSL2 / Ubuntu**：
 
 ```bash
 # jq
@@ -42,6 +44,19 @@ sudo apt-get install -y jq
 # gcloud SDK
 curl https://sdk.cloud.google.com | bash
 exec -l $SHELL
+
+# gws
+npm install -g @googleworkspace/cli
+```
+
+**macOS**：
+
+```bash
+# jq
+brew install jq
+
+# gcloud SDK
+brew install --cask google-cloud-sdk
 
 # gws
 npm install -g @googleworkspace/cli
