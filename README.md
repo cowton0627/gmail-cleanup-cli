@@ -147,7 +147,6 @@ Claude Code 會：
 | 檔案 | 角色 | 你要不要編輯 |
 |---|---|---|
 | `README.md` | 給人看的安裝 + 使用說明（這份） | 一般不用 |
-| `CLAUDE.md` | 給未來進來這個 repo 的 Claude Code 看的 onboarding + 硬規則 | 一般不用 |
 | `prompts/01-scan.md` | 貼給 Claude Code 跑掃描（read-only） | **每次貼之前**在最下面填具體需求 |
 | `prompts/02-apply.md` | 貼給 Claude Code 執行 trash（會改 Gmail） | **每次貼之前**在最下面填 CSV 路徑 + 授權句 |
 | `credentials.json` | GCP OAuth client 憑證 | 不 commit、不外流（已 gitignored） |
