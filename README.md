@@ -136,6 +136,17 @@ Claude Code 會：
 1. 對每封 `likely_trash` 的信呼叫 `gws gmail users messages trash` 移到垃圾桶（**不是永久刪除**）
 2. Gmail 預設 30 天後自動清空垃圾桶 — 給你後悔的機會
 
+## 用其他 agent 執行（OpenClaw 等）
+
+這份 runbook 沒有綁死 Claude Code。實際操作 Gmail 的是 `gws` CLI，任何**能執行 shell 指令的 agent**（OpenClaw、Gemini CLI、Codex CLI 等）都能照著 `prompts/` 跑完整個流程：貼 `01-scan.md` 掃描、審 CSV、貼 `02-apply.md` 執行。
+
+換 agent 時的差異與注意事項：
+
+- **一次性設定完全相同**：不管用什麼 agent，都要自己建 GCP 專案、OAuth client、跑 `gws auth login` 授權自己的 Gmail
+- **模型費用看你接什麼**：Claude Code 走訂閱額度；OpenClaw 可接自己的 API key，包括免費方案（例如 Google AI Studio 的 Gemini 免費 tier——有每分鐘 / 每日請求限額，但每日重置，整理幾百封信的 metadata 分類通常夠用）
+- **安全規則是 prompt 層級的約束**：「只 trash 不 delete」「只碰 `likely_trash` 列」靠 agent 遵守指令。接較弱或免費的模型時，誤操作風險會上升——apply 前務必人工審過 CSV
+- **常駐型 assistant 攻擊面較大**：掛在 Telegram / WhatsApp 等通道的 OpenClaw，掃描階段會讀入大量陌生信件的 subject / sender（不受信任的內容），存在 prompt injection 風險。務必維持「scan 只用 readonly scope、apply 前人工審核」的流程，這是本 runbook 最重要的防線
+
 ## 出狀況的快速排查
 
 | 症狀 | 多半是 | 處理 |
